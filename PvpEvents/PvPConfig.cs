@@ -7,23 +7,15 @@ namespace PvpEvents
 {
 	public class PvPConfig
 	{
-		public string duelArenaName;
-		public Point duelArenaSpawn1;
-		public Point duelArenaSpawn2;
+		public List<Arena> arenaList;
 		public int duelMatchesNeededToWin;
-		public string ffaArenaName;
-		public List<Point> ffaArenaSpawnPointsList;
 		public int ffaMatchesNeededToWin;
 		public int ffaSignupTime;
 
 		public PvPConfig()
 		{
-			duelArenaName = "duel";
-			duelArenaSpawn1 = new Point(0, 0);
-			duelArenaSpawn2 = new Point(0, 0);
+			arenaList = new List<Arena>() { new Arena() { Name = "Example", RegionName = "example", SpawnPoints = new List<Point>() { new Point(0, 0), new Point(1, 1) } } };
 			duelMatchesNeededToWin = 3;
-			ffaArenaName = "ffa";
-			ffaArenaSpawnPointsList = new List<Point>() { new Point(0, 0), new Point(0, 0) };
 			ffaMatchesNeededToWin = 5;
 			ffaSignupTime = 30;
 		}
@@ -42,7 +34,6 @@ namespace PvpEvents
 			{
 				string raw = File.ReadAllText(Path.Combine(TShock.SavePath, "pvpconfig.json"));
 				PvPConfig pvpc = JsonConvert.DeserializeObject<PvPConfig>(raw);
-				pvpc.ffaArenaSpawnPointsList.RemoveAll(p => p.X == 0 && p.Y == 0);
 				return pvpc;
 			}
 			catch
