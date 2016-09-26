@@ -8,23 +8,21 @@ using TShockAPI;
 
 namespace PvpEvents
 {
-	public class DuelMode : GameMode
+	public class DuelMode : IGameMode
 	{
-		public override string Name { get { return "Duel"; } }
-		public override GameState State { get; set; }
-		public override Command Command { get { return _cmd; } }
-		protected override List<TSPlayer> PlayerList { get; set; }
-		protected override Arena LoadedArena { get; set; }
-		protected override GameFlags LoadedFlags { get; set; }
-		protected override int GameTicks { get; set; }
-		protected override Timer GameTimer { get { return _gameTimer; } }
-
-		private static Command _cmd = new Command("pvpevents.duel", DuelCMD, "duel");
+		public string Name { get { return "Duel"; } }
+		public GameState State { get; set; }
+		public List<TSPlayer> PlayerList { get; set; }
+		public Arena LoadedArena { get; set; }
+		public GameFlags LoadedFlags { get; set; }
+		public int GameTicks { get; set; }
+		public Timer GameTimer { get { return _gameTimer; } }
+		
 		private static Timer _gameTimer = new Timer(1000);
 		private static int p1 = -1;
 		private static int p2 = -1;
 
-		public override void Create()
+		public void Create()
 		{
 			State = GameState.inactive;
 			PlayerList = new List<TSPlayer>();
@@ -38,41 +36,17 @@ namespace PvpEvents
 			PvPMain.onPvPToggle += onPvPToggle;
 		}
 
-		public static void DuelCMD(CommandArgs args)
-		{
-			string flag;
-			if (args.Parameters.Count > 0)
-				flag = args.Parameters[0].ToLower();
-			else
-				flag = "help";
-
-			switch(flag)
-			{
-				//duel <player>
-				//duel accept
-				//duel decline
-				//duel stop
-				//duel quit
-				case "help":
-					if (State == GameState.inactive)
-					{
-
-					}
-					break;
-			}
-		}
-
-		public override bool ContainsPlayer(int index)
+		public bool ContainsPlayer(int index)
 		{
 			return PlayerList.Exists(p => p.Index == index);
 		}
 
-		public override void EndMatch(GameEnding ending, string player)
+		public void EndMatch(GameEnding ending, string player)
 		{
 			throw new NotImplementedException();
 		}
 
-		protected override void Broadcast(string msg)
+		public void Broadcast(string msg)
 		{
 			foreach (TSPlayer plr in PlayerList)
 			{

@@ -8,21 +8,20 @@ using TShockAPI;
 
 namespace PvpEvents
 {
-	public abstract class GameMode
+	public interface IGameMode
 	{
-		public abstract string Name { get; }
-		protected abstract List<TSPlayer> PlayerList { get; set; }
-		protected abstract int GameTicks { get; set; }
-		public abstract GameState State { get; set; }
-		protected abstract Timer GameTimer { get; }
-		protected abstract Arena LoadedArena { get; set; }
-		protected abstract GameFlags LoadedFlags { get; set; }
-		public abstract Command Command { get; }
+		string Name { get; }
+		List<TSPlayer> PlayerList { get; set; }
+		int GameTicks { get; set; }
+		GameState State { get; set; }
+		Timer GameTimer { get; }
+		Arena LoadedArena { get; set; }
+		GameFlags LoadedFlags { get; set; }
 
-		public abstract void Create();
-		public abstract void EndMatch(GameEnding ending, string player);
-		public abstract bool ContainsPlayer(int index);
-		protected abstract void Broadcast(string message);
+		void Create();
+		void EndMatch(GameEnding ending, string player);
+		bool ContainsPlayer(int index);
+		void Broadcast(string message);
 	}
 
 	[Flags]
