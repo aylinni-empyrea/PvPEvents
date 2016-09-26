@@ -1,10 +1,6 @@
 ﻿using Newtonsoft.Json;
-using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using TShockAPI;
 
 namespace PvpEvents
@@ -15,6 +11,10 @@ namespace PvpEvents
 		public Point duelArenaSpawn1;
 		public Point duelArenaSpawn2;
 		public int duelMatchesNeededToWin;
+		public string ffaArenaName;
+		public List<Point> ffaArenaSpawnPointsList;
+		public int ffaMatchesNeededToWin;
+		public int ffaSignupTime;
 
 		public PvPConfig()
 		{
@@ -22,6 +22,10 @@ namespace PvpEvents
 			duelArenaSpawn1 = new Point(0, 0);
 			duelArenaSpawn2 = new Point(0, 0);
 			duelMatchesNeededToWin = 3;
+			ffaArenaName = "ffa";
+			ffaArenaSpawnPointsList = new List<Point>() { new Point(0, 0), new Point(0, 0) };
+			ffaMatchesNeededToWin = 5;
+			ffaSignupTime = 30;
 		}
 
 		public static PvPConfig Read()
@@ -38,6 +42,7 @@ namespace PvpEvents
 			{
 				string raw = File.ReadAllText(Path.Combine(TShock.SavePath, "pvpconfig.json"));
 				PvPConfig pvpc = JsonConvert.DeserializeObject<PvPConfig>(raw);
+				pvpc.ffaArenaSpawnPointsList.RemoveAll(p => p.X == 0 && p.Y == 0);
 				return pvpc;
 			}
 			catch

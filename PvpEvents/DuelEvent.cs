@@ -13,13 +13,13 @@ namespace PvpEvents
 {
 	public static class DuelEvent
 	{
-		public static string duelArenaName;
-		public static Region duelArena;
+		private static string duelArenaName;
+		private static Region duelArena;
 		public static bool disabled = false;
 		public static DPlayer player1 = null;
 		public static DPlayer player2 = null;
-		public static Timer gameTimer = new Timer();
-		public static int count = 0;
+		private static Timer gameTimer = new Timer();
+		private static int count = 0;
 		public static DuelState state = DuelState.inactive;
 
 		static DuelEvent()
@@ -70,7 +70,7 @@ namespace PvpEvents
 			state = DuelState.pregame;
 		}
 
-		public static void onGameTimerElapsed(object sender, ElapsedEventArgs args)
+		private static void onGameTimerElapsed(object sender, ElapsedEventArgs args)
 		{
 			//Force players to stay in arena spawn
 			if (state == DuelState.pregame && count < 10)
@@ -81,7 +81,7 @@ namespace PvpEvents
 				if ((int)player2.tsplayer.X / 16 != PvPMain.pvpConfig.duelArenaSpawn2.X || (int)player2.tsplayer.Y / 16 != PvPMain.pvpConfig.duelArenaSpawn2.Y)
 					player2.tsplayer.Teleport(PvPMain.pvpConfig.duelArenaSpawn2.X * 16, PvPMain.pvpConfig.duelArenaSpawn2.Y * 16);
 
-				TSPlayer.Server.SendInfoMessage("player1.tsplayer.X: " + player1.tsplayer.X + " | PvPMain.pvpConfig.duelArenaSpawn1.X " + PvPMain.pvpConfig.duelArenaSpawn1.X + " | PvPMain.pvpConfig.duelArenaSpawn1.X * 16 " + PvPMain.pvpConfig.duelArenaSpawn1.X);
+				//TSPlayer.Server.SendInfoMessage("player1.tsplayer.X: " + player1.tsplayer.X + " | PvPMain.pvpConfig.duelArenaSpawn1.X " + PvPMain.pvpConfig.duelArenaSpawn1.X + " | PvPMain.pvpConfig.duelArenaSpawn1.X * 16 " + PvPMain.pvpConfig.duelArenaSpawn1.X);
 
 				if (count == 0 || count == 5 || count == 8)
 				broadcast($"The duel will begin in {10 - count} seconds!");
@@ -182,7 +182,7 @@ namespace PvpEvents
 			}
 		}
 
-		public static void onPvPToggle(object sender, PvPMain.PvPEventArgs args)
+		private static void onPvPToggle(object sender, PvPMain.PvPEventArgs args)
 		{
 			if (state == DuelState.inactive)
 				return;
@@ -213,12 +213,12 @@ namespace PvpEvents
 			}
 		}
 
-		public static void onPlayerDeath(object sender, PvPMain.PlayerDeathEventArgs args)
+		private static void onPlayerDeath(object sender, PvPMain.PlayerDeathEventArgs args)
 		{
 			if (state != DuelState.active)
 				return;
 
-			if (player1.tsplayer.Index != args.playerID && player2.tsplayer.Index != args.playerID)
+			if (!containsPlayer(args.playerID))
 				return;
 
 			if (!args.pvp)
@@ -265,21 +265,29 @@ namespace PvpEvents
 			}
 		}
 
-		public static void onPlayerLeave(object sender, LeaveEventArgs args)
+		private static void onPlayerLeave(object sender, LeaveEventArgs args)
 		{
 			if (state == DuelState.inactive)
 				return;
 
-			if (args.Who != player1.tsplayer.Index && args.Who != player2.tsplayer.Index)
+			if (!containsPlayer(args.Who))
 				return;
 
 			endMatch(Endings.playerLeave, TShock.Players[args.Who].Name);
 		}
 
-		public static void broadcast(string msg)
+		private static void broadcast(string msg)
 		{
 			player1.tsplayer.SendInfoMessage($"[Duel] {msg}");
 			player2.tsplayer.SendInfoMessage($"[Duel] {msg}");
+		}
+
+		public static bool containsPlayer(int id)
+		{
+			if (player1.tsplayer.Index == id || player2.tsplayer.Index == id)
+				return true;
+			else
+				return false;
 		}
 	}
 

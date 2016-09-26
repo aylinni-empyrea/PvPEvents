@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Timers;
 using Terraria;
 using TerrariaApi.Server;
 using TShockAPI;
@@ -51,20 +52,26 @@ namespace PvpEvents
 		public static EventHandler<PvPEventArgs> onPvPToggle;
 		public static EventHandler<LeaveEventArgs> onPlayerLeave;
 		public static PvPConfig pvpConfig;
-		public static List<Tuple<int, int>> duelChallenges = new List<Tuple<int, int>>();
+		private static List<Tuple<int, int>> duelChallenges = new List<Tuple<int, int>>();
+		private static List<int> ffaPlayers = new List<int>();
+		private static Timer ffaStartTimer = new Timer();
 
 		#region Hooks
 		private void onInitialize(EventArgs args)
 		{
 			pvpConfig = PvPConfig.Read();
+			ffaStartTimer.Interval = pvpConfig.ffaSignupTime * 1000;
+			ffaStartTimer.Elapsed += onFFAStart;
 			
 			Commands.ChatCommands.Add(new Command("duel.start", DuelCMD, "duel"));
+			Commands.ChatCommands.Add(new Command("ffa.start", FFACMD, "ffa"));
 			Commands.ChatCommands.Add(new Command("pvp.reload", EventReload, "eventreload", "ereload"));
 		}
 
 		private void onWorldLoad(EventArgs args)
 		{
 			DuelEvent.Create();
+			FFAEvent.Create();
 		}
 
 		private void onGetData(GetDataEventArgs args)
@@ -114,6 +121,10 @@ namespace PvpEvents
 		{
 			if (TShock.Players[args.Who] != null && TShock.Players[args.Who].Active)
 				onPlayerLeave?.Invoke(this, args);
+
+			duelChallenges.RemoveAll(p => p.Item1 == args.Who);
+			duelChallenges.RemoveAll(p => p.Item2 == args.Who);
+			ffaPlayers.Remove(args.Who);
 		}
 		#endregion
 
@@ -139,7 +150,8 @@ namespace PvpEvents
 				args.Player.SendErrorMessage("/duel <player name>");
 				args.Player.SendErrorMessage("/duel accept/decline");
 				args.Player.SendErrorMessage("/duel quit");
-				args.Player.SendErrorMessage("/duel stop");
+				if (args.Player.HasPermission("pvp.mod"))
+					args.Player.SendErrorMessage("/duel stop");
 				return;
 			}
 			switch (args.Parameters[0].ToLower())
@@ -147,9 +159,11 @@ namespace PvpEvents
 				case "accept":
 					var result = from Tuple<int, int> t in duelChallenges where t.Item2 == args.Player.Index select t;
 					if (result.Count() == 0)
-					{
 						args.Player.SendErrorMessage("You do not have any pending challenges!");
-					}
+					else if (FFAEvent.state != FFAState.inactive && FFAEvent.containsPlayer(args.Player.Index))
+						args.Player.SendErrorMessage("You cannot accept duel invitations while you are in FFA!");
+					else if (ffaPlayers.Contains(args.Player.Index))
+						args.Player.SendErrorMessage("You cannot accept duel invitaitons while signed up for FFA!");
 					else
 					{
 						int p1 = result.First().Item1;
@@ -176,7 +190,7 @@ namespace PvpEvents
 						DuelEvent.endMatch(Endings.playerQuit, args.Player.Name);
 					break;
 				case "stop":
-					if (!args.Player.HasPermission("duel.mod"))
+					if (!args.Player.HasPermission("pvp.mod"))
 						args.Player.SendErrorMessage("You do not have access to this command.");
 					else if (DuelEvent.state == DuelState.inactive)
 						args.Player.SendErrorMessage("There is no ongoing duel!");
@@ -190,6 +204,16 @@ namespace PvpEvents
 					if (DuelEvent.state != DuelState.inactive)
 					{
 						args.Player.SendErrorMessage("There is already an ongoing duel!");
+						return;
+					}
+					else if (FFAEvent.state != FFAState.inactive && FFAEvent.containsPlayer(args.Player.Index))
+					{
+						args.Player.SendErrorMessage("You cannot send duel invitations while you are playing FFA!");
+						return;
+					}
+					else if (ffaPlayers.Contains(args.Player.Index))
+					{
+						args.Player.SendErrorMessage("You cannot send duel invitaitons while you are signed up to play FFA!");
 						return;
 					}
 					string playername = string.Join(" ", args.Parameters);
@@ -229,16 +253,128 @@ namespace PvpEvents
 			}
 		}
 
+		private void FFACMD(CommandArgs args)
+		{
+			if (FFAEvent.disabled)
+			{
+				args.Player.SendErrorMessage("FFA is currently disabled.");
+				return;
+			}
+
+			// ffa start
+			// ffa join
+			// ffa quit
+			// ffa stop
+			if (args.Parameters.Count == 0 || args.Parameters[0].ToLower() == "help")
+			{
+				if (args.Parameters.Count == 0)
+					args.Player.SendErrorMessage("Invalid syntax:");
+				args.Player.SendErrorMessage("/ffa start");
+				args.Player.SendErrorMessage("/ffa join");
+				args.Player.SendErrorMessage("/ffa quit");
+				if (args.Player.HasPermission("pvp.mod"))
+					args.Player.SendErrorMessage("/ffa stop");
+				return;
+			}
+			switch (args.Parameters[0].ToLower())
+			{
+				case "start":
+					if (FFAEvent.state != FFAState.inactive)
+						args.Player.SendErrorMessage("There is already an ongoing FFA event!");
+					else if (ffaPlayers.Count != 0)
+						args.Player.SendErrorMessage("An FFA event is already in sign-ups! Use '/ffa join' to join!");
+					else if (DuelEvent.state != DuelState.inactive && DuelEvent.containsPlayer(args.Player.Index))
+						args.Player.SendErrorMessage("You cannot join FFA while you are dueling!");
+					else
+					{
+						ffaPlayers.Add(args.Player.Index);
+						ffaStartTimer.Start();
+						TSPlayer.All.SendInfoMessage($"{args.Player.Name} has started a game of FFA! Use '/ffa join' to join!");
+					}
+					break;
+				case "join":
+					if (ffaPlayers.Count == 0)
+						args.Player.SendErrorMessage("There is no FFA event in signups!");
+					else if (ffaPlayers.Contains(args.Player.Index))
+						args.Player.SendErrorMessage("You have already signed up for this FFA match!");
+					else
+					{
+						ffaPlayers.Add(args.Player.Index);
+						TSPlayer.All.SendInfoMessage($"{args.Player.Name} has joined the FFA match!");
+					}
+					break;
+				case "quit":
+					if (FFAEvent.state != FFAState.inactive && FFAEvent.containsPlayer(args.Player.Index))
+					{
+						FFAEvent.onPlayerLeave(null, new FFALeaveEventArgs(args.Player.Index));
+						args.Player.SendSuccessMessage($"You have left the FFA match.");
+					}
+					else if (ffaPlayers.Contains(args.Player.Index))
+					{
+						args.Player.SendSuccessMessage($"You have left the FFA match.");
+						ffaPlayers.Remove(args.Player.Index);
+					}
+					else
+						args.Player.SendErrorMessage($"You are not currently in an FFA match!");
+					break;
+				case "stop":
+					if (FFAEvent.state != FFAState.inactive)
+					{
+						args.Player.SendSuccessMessage($"Stopped the FFA event.");
+						FFAEvent.endMatch(Endings.forceEnd, args.Player.Name);
+					}
+					else if (ffaPlayers.Count > 0)
+					{
+						ffaPlayers.Clear();
+						args.Player.SendSuccessMessage($"Stopped the FFA event.");
+						ffaStartTimer.Stop();
+					}
+					else
+						args.Player.SendErrorMessage("No FFA event to end!");
+					break;
+				default:
+					args.Player.SendErrorMessage("Invalid syntax:");
+					args.Player.SendErrorMessage("/ffa start");
+					args.Player.SendErrorMessage("/ffa join");
+					args.Player.SendErrorMessage("/ffa quit");
+					if (args.Player.HasPermission("pvp.mod"))
+						args.Player.SendErrorMessage("/ffa stop");
+					break;
+			}
+		}
+
 		private void EventReload(CommandArgs args)
 		{
 			pvpConfig = PvPConfig.Read();
 			DuelEvent.Create();
+			FFAEvent.Create();
 
 			args.Player.SendSuccessMessage("PvP Events reloaded.");
 		}
 		#endregion
 
 		#region Misc Stuff
+		private void onFFAStart(object sender, ElapsedEventArgs args)
+		{
+			ffaStartTimer.Stop();
+
+			if (ffaPlayers.Count > 2)
+			{
+				List<TSPlayer> players = new List<TSPlayer>();
+				foreach (int index in ffaPlayers)
+					if (TShock.Players[index] != null)
+						players.Add(TShock.Players[index]);
+
+				FFAEvent.StartPreGame(players);
+			}
+			else
+			{
+				TSPlayer.All.SendWarningMessage($"Not enough players for FFA.");
+			}
+
+			ffaPlayers.Clear();
+		}
+
 		public class PlayerDeathEventArgs : EventArgs
 		{
 			public byte playerID;
@@ -252,6 +388,15 @@ namespace PvpEvents
 		{
 			public byte playerID;
 			public bool enabled;
+		}
+
+		public class FFALeaveEventArgs : LeaveEventArgs
+		{
+			new int Who;
+			public FFALeaveEventArgs(int who)
+			{
+				Who = who;
+			}
 		}
 		#endregion
 	}

@@ -45,7 +45,11 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Arena.cs" />
     <Compile Include="DuelEvent.cs" />
+    <Compile Include="DuelMode.cs" />
+    <Compile Include="FFAEvent.cs" />
+    <Compile Include="GameMode.cs" />
     <Compile Include="PvPConfig.cs" />
     <Compile Include="PvPMain.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
