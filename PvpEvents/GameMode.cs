@@ -11,7 +11,7 @@ namespace PvpEvents
 	public interface IGameMode
 	{
 		string Name { get; }
-		List<TSPlayer> PlayerList { get; set; }
+		List<DPlayer> PlayerList { get; set; }
 		int GameTicks { get; set; }
 		GameState State { get; set; }
 		Timer GameTimer { get; }
@@ -19,10 +19,24 @@ namespace PvpEvents
 		GameFlags LoadedFlags { get; set; }
 
 		void Create();
-		void EndMatch(GameEnding ending, string player);
+		void EndMatch(GameEnding ending, int player);
 		bool ContainsPlayer(int index);
 		void Broadcast(string message);
 	}
+
+    public class DPlayer
+    {
+        public TSPlayer P;
+        public int MatchesWon;
+        public Point ArenaSpawn;
+
+        public DPlayer(TSPlayer _player)
+        {
+            P = _player;
+            MatchesWon = 0;
+            ArenaSpawn = new Point(0,0);
+        }
+    }
 
 	[Flags]
 	public enum GameState
